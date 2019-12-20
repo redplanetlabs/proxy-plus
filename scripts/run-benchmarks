@@ -1,0 +1,6 @@
+#!/bin/bash
+
+lein javac
+lein version
+echo
+java -server -XX:MaxInlineSize=100 -cp "$(lein with-profile bench classpath)" clojure.main scripts/benchmarks.clj
