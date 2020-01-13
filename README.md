@@ -4,6 +4,12 @@
 
 `proxy+` fixes these issues with `proxy`. Usage is like `reify`, and it's up to 10x faster.
 
+## Latest version
+
+The latest release version of proxy-plus is hosted on [Clojars](https://clojars.org):
+
+[![Current Version](https://clojars.org/com.rpl/proxy-plus/latest-version.svg)](https://clojars.org/com.rpl/proxy-plus)
+
 ## Usage
 
 This library provides the macro `proxy+`. The first argument is fields to provide to the superclass's constructor. Next comes `reify`-like definitions to provide overrides.  When extending a base class, the base class should come first. Example usage:
@@ -86,6 +92,6 @@ Found 7 outliers in 60 samples (11.6667 %)
  Variance from outliers : 7.7810 % Variance is slightly inflated by outliers
 ```
 
-# License
+## License
 
 Copyright 2020 Red Planet Labs, Inc. proxy-plus is licensed under Apache License v2.0.
