@@ -1,7 +1,7 @@
 (ns com.rpl.proxy-plus-test
   (:use [clojure.test]
         [com.rpl.proxy-plus])
-  (:import [com.rpl TestBaseClass TestBaseClass2]))
+  (:import [com.rpl TestBaseClass TestBaseClass2 InterfaceAB]))
 
 (deftest nothing-test
   (let [o (proxy+ [])
@@ -121,6 +121,51 @@
             )]
     (is (= :a (.foo o)))
     (is (= "hello?" (.foo o "hello")))
+    ))
+
+(definterface I5
+  (^String foo [^String str])
+  (^String foo [^Integer n])
+  )
+
+(deftest same-method-name-different-param-types
+   (let [o1 (proxy+ []
+              I5
+              (foo [this ^String strArg] "other")
+              (foo [this ^Integer integerArg] "first")
+              )
+         sb (new StringBuilder)
+         o2 (proxy+ []
+              java.io.Writer
+              (write [this ^String str offset len] (do (.append sb "String overload") nil))
+              (write [this ^chars cbuf offset len] (do (.append sb "char[] overload") nil))
+              )
+         o3 (proxy+ []
+              InterfaceAB
+              (bar [this ^Integer x ^Integer y ^long z] "barA") ; from InterfaceA
+              (bar [this ^Integer x ^Integer y ^Integer z] "barB") ; from InterfaceB
+              (baz [this] 0)
+              (baz [this ^long p] 1)
+              (baz [this ^double p] 2)
+              (baz [this ^ints p] 3)
+              (baz [this ^chars p] 4)
+              )]
+      (is (= "other" (.foo o1 "bar")))
+      (is (= "first" (.foo o1 (int 3))))
+      ;; overloads of concrete Java Writer class
+      (is (= nil (.write o2 "hello" 0 5)))
+      (is (= "String overload" (.toString sb)))
+      (.setLength sb 0)
+      (is (= nil (.write o2 (char-array [\f \o \o]) 1 1)))
+      (is (= "char[] overload" (.toString sb)))
+      ;; same method and arity, but from two different super interfaces
+      (is (= "barA" (.bar o3 (int 1) (int 1) (long 2)))) ; from InterfaceA
+      (is (= "barB" (.bar o3 (int 1) (int 1) (int 2)))) ; from InterfaceB
+      (is (= 0 (.baz o3))) ; 0-arity overload
+      (is (= 1 (.baz o3 (long 1)))) ; 1-arity (long) overload
+      (is (= 2 (.baz o3 (double 1.0)))) ; 1-arity (double) overload
+      (is (= 3 (.baz o3 (int-array [1 2 3])))) ; 1-arity (int[]) overload
+      (is (= 4 (.baz o3 (char-array "zyx")))) ; 1-arity (char[]) overload
     ))
 
 (deftest inherited-test
