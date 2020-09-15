@@ -1,7 +1,8 @@
 (ns com.rpl.proxy-plus-test
   (:use [clojure.test]
         [com.rpl.proxy-plus])
-  (:import [com.rpl TestBaseClass TestBaseClass2 InterfaceAB]))
+  (:import [com.rpl TestBaseClass TestBaseClass2 InterfaceA
+                    InterfaceB InterfaceC]))
 
 (deftest nothing-test
   (let [o (proxy+ [])
@@ -141,9 +142,13 @@
               (write [this ^chars cbuf offset len] (do (.append sb "char[] overload") nil))
               )
          o3 (proxy+ []
-              InterfaceAB
-              (bar [this ^Integer x ^Integer y ^long z] "barA") ; from InterfaceA
-              (bar [this ^Integer x ^Integer y ^Integer z] "barB") ; from InterfaceB
+              InterfaceA
+              (bar [this ^Integer x ^Integer y ^long z] "barA")
+
+              InterfaceB
+              (bar [this ^Integer x ^Integer y ^Integer z] "barB")
+
+              InterfaceC
               (baz [this] 0)
               (baz [this ^long p] 1)
               (baz [this ^double p] 2)

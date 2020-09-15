@@ -1,6 +1,6 @@
 package com.rpl;
 
-public interface InterfaceAB extends InterfaceA, InterfaceB {
+public interface InterfaceC {
   int baz();
   int baz(long p);
   int baz(double p);
