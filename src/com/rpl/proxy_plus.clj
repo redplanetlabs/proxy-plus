@@ -51,11 +51,48 @@
         (.getDeclaredMethods klass)
         ))))
 
-(defn- find-matching-method [^Class klass name num-params]
+(defn- tag-matches [tag param-class]
+  (or
+   (nil? tag)
+   (let [compare-class
+     (case tag
+       ;; map primitive type hints to their equivalent classes
+       byte Byte/TYPE
+       short Short/TYPE
+       int Integer/TYPE
+       long Long/TYPE
+       float Float/TYPE
+       double Double/TYPE
+       boolean Boolean/TYPE
+       char Character/TYPE
+       bytes (type (byte-array []))
+       shorts (type (short-array []))
+       ints (type (int-array []))
+       longs (type (long-array []))
+       floats (type (float-array []))
+       doubles (type (double-array []))
+       booleans (type (boolean-array []))
+       chars (type (char-array []))
+       (resolve tag) ; default, just return the resolved tag (which should be a Class)
+     )] (identical? compare-class param-class))
+  )
+)
+
+(defn- type-hints-match [l1 l2]
+  (and (= (count l1) (count l2))
+  (let [[l1h & l1t] l1
+        [l2h & l2t] l2]
+      (and
+        (tag-matches l1h l2h)
+        (or (empty? l1t) (type-hints-match l1t l2t))
+      ))
+))
+
+(defn- find-matching-method [^Class klass name all-param-types]
   (let [matching (filter
                     (fn [^Method m]
                       (and (= (.getName m) name)
-                           (= num-params (-> m .getParameterTypes count))
+                           (type-hints-match (rest all-param-types) (-> m .getParameterTypes))
                            ))
                     (concat
                       (get-protected-methods klass)
@@ -155,11 +192,12 @@
 
                  :override-info
                  (dofor [[name params & body] overrides]
-                   (let [sname (str name)]
+                   (let [param-types (vec (for [param params](:tag (meta param))))
+                         sname (str name)]
                      {:name sname
                       :fn `(fn ~params ~@body)
                       :field (munge (str (gensym sname)))
-                      :num-params (count params)
+                      :all-param-types param-types
                       }))
                  })
         [^Class super interfaces] (get-super-and-interfaces (mapv :base decls))
@@ -231,12 +269,11 @@
           )))
 
     (doseq [{:keys [base override-info]} decls
-            {:keys [name field num-params]} override-info]
+            {:keys [name field all-param-types]} override-info]
       (let [^Method jmeth (find-matching-method
                             base
                             name
-                            ;; dec because "this" not relevant for java
-                            (dec num-params))
+                            all-param-types)
             rtype (.getReturnType jmeth)
             ptypes (.getParameterTypes jmeth)
             ga (asm/generator-adapter
