@@ -1,4 +1,4 @@
-## 0.0.2-SNAPSHOT
+## 0.0.2
 
 * Use type hints to distinguish methods of same name and arity (thanks @jeff303)
 * Fix reflection warning
