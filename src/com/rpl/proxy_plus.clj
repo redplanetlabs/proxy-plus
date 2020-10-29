@@ -321,6 +321,6 @@
                                  ALL
                                  (multi-path :field :fn)]
                            decls))]
-         (new ~(symbol class-name) fn-map# ~@super-args)
+         (new ~(symbol class-name) ^Map fn-map# ~@super-args)
          ))
   ))
