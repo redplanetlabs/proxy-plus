@@ -11,8 +11,4 @@
 
   :profiles {:bench {:dependencies [[criterium "0.4.5"]]}
              }
-
-  :deploy-repositories
-         [["clojars" {:url "https://repo.clojars.org"
-                      :sign-releases false}]]
   )
