@@ -1,8 +1,9 @@
 (ns com.rpl.proxy-plus-test
   (:use [clojure.test]
         [com.rpl.proxy-plus])
-  (:import [com.rpl TestBaseClass TestBaseClass2 InterfaceA
-                    InterfaceB InterfaceC]))
+  (:import [com.rpl TestBaseClass TestBaseClass2
+            InterfaceA InterfaceB InterfaceC InterfaceD
+            AbstractBaseClass1 AbstractBaseClass2]))
 
 (deftest nothing-test
   (let [o (proxy+ [])
@@ -27,6 +28,15 @@
     (is (= 3 (.foo o "aaa")))
     (is (= 5 (.foo o "edcba")))
     ))
+
+(deftest multiple-levels-of-base-classes-test
+  (let [o (proxy+
+           []
+           AbstractBaseClass2
+           (foo [_this ^Integer x ^String y])
+           (bar [_this ^Integer x ^Integer y ^long z])
+           )])
+  )
 
 (definterface I1
   (^String foo [^Long l ^long l2])

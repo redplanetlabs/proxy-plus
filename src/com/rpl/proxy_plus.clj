@@ -92,17 +92,18 @@
   (let [matching (filter
                     (fn [^Method m]
                       (and (= (.getName m) name)
-                           (type-hints-match (rest all-param-types) (-> m .getParameterTypes))
+                           (type-hints-match (rest all-param-types)
+                                             (-> m .getParameterTypes))
                            ))
                     (concat
                       (get-protected-methods klass)
                       (.getMethods klass)))]
     (cond
+      ;; there was more than one match, but the last one is the one that is
+      ;; closest to the base class we specified in the proxy+ decl block, so
+      ;; let's just use that one.
       (> (count matching) 1)
-      (throw
-        (ex-info
-          "Too many matching methods"
-          {:base klass :name name :methods (seq matching)}))
+      (last matching)
 
       (= (count matching) 0)
       (throw (ex-info "No matching methods" {:base klass :name name}))
