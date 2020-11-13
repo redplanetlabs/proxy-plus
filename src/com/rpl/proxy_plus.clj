@@ -186,7 +186,9 @@
       meth
       )))
 
-(defmacro proxy+ [super-args & impls]
+
+
+(defmacro named-proxy+ [proxy-name-sym super-args & impls]
   (let [decls (dofor [[base-sym & overrides] (partition-when symbol? impls)]
                 {:base
                  (resolve! base-sym)
@@ -203,7 +205,7 @@
                  })
         [^Class super interfaces] (get-super-and-interfaces (mapv :base decls))
 
-        class-name (.replace (str *ns* "." (gensym "proxy_plus")) \- \_)
+        class-name (.replace (str *ns* "." proxy-name-sym) \- \_)
 
         set-fns-meth (asm/get-method asm/TVOID-TYPE "___setFns" [Map])
         map-get-meth (asm/get-method Object "get" [Object])
@@ -325,3 +327,7 @@
          (new ~(symbol class-name) ^Map fn-map# ~@super-args)
          ))
   ))
+
+(defmacro proxy+ [super-args & impls]
+  `(named-proxy+ ~(gensym "proxy_plus") ~super-args ~@impls)
+  )
