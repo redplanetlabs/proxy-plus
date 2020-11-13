@@ -1,9 +1,5 @@
 ## 0.0.4
 
-* Better support for over-specified abstract class hierarchies
-
-## 0.0.3
-
 * If there are multiple matching superclass methods, we now pick the last one.
 
 ## 0.0.2
