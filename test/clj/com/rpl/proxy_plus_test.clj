@@ -197,5 +197,27 @@
   (let [o (proxy+ my-proxy [])]
     (is (= (.getName (class o))
            "com.rpl.proxy_plus_test.my_proxy"))
-    )
+    ))
+
+(definterface I6
+  (^String foo [^java.util.Map m])
+  );
+
+(deftest assignable-from-test
+  (let [o (proxy+
+           []
+           I6
+           (foo [_this ^java.util.HashMap m] "woo")
+           )])
+  )
+
+(deftest throws-on-busted-type-hint-test
+  (is (thrown? Exception
+               ;; eval here so that the test namespace as a whole compiles, even
+               ;; though this produces a compile-time error!
+               (eval '(proxy+
+                       []
+                       I6
+                       (foo [_this ^SuperDuperMap m] "woo")
+                       ))))
   )
