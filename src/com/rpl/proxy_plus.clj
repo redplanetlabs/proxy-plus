@@ -74,7 +74,13 @@
        booleans (type (boolean-array []))
        chars (type (char-array []))
        (resolve tag) ; default, just return the resolved tag (which should be a Class)
-     )] (identical? compare-class param-class))
+       )]
+     (when (nil? compare-class)
+       (throw (ex-info (str "Type hint "
+                            tag
+                            " resolved to nil. Make sure that type is imported!")
+                       {})))
+     (.isAssignableFrom param-class compare-class))
   )
 )
 
