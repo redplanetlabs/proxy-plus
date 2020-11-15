@@ -201,6 +201,7 @@
 
 (definterface I6
   (^String foo [^java.util.Map m])
+  (^String foo [^java.util.HashMap m])
   );
 
 (deftest assignable-from-test
@@ -208,7 +209,12 @@
            []
            I6
            (foo [_this ^java.util.HashMap m] "woo")
-           )])
+           (foo [_this ^java.util.Map m] "wee")
+
+           )]
+    (is (= "wee" (.foo o (java.util.TreeMap.))))
+    (is (= "woo" (.foo o (java.util.HashMap.))))
+    )
   )
 
 (deftest throws-on-busted-type-hint-test
