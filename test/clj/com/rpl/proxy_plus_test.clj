@@ -192,3 +192,10 @@
     (is (= 12 (.foo o "biubiu")))
     (is (= "inherited" (.car o)))
     ))
+
+(deftest named-proxy-test
+  (let [o (proxy+ my-proxy [])]
+    (is (= (.getName (class o))
+           "com.rpl.proxy_plus_test.my_proxy"))
+    )
+  )
