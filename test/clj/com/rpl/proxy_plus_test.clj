@@ -194,7 +194,7 @@
     ))
 
 (deftest named-proxy-test
-  (let [o (named-proxy+ my-proxy [])]
+  (let [o (proxy+ my-proxy [])]
     (is (= (.getName (class o))
            "com.rpl.proxy_plus_test.my_proxy"))
     )

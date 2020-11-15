@@ -188,8 +188,21 @@
 
 
 
-(defmacro named-proxy+ [proxy-name-sym super-args & impls]
-  (let [decls (dofor [[base-sym & overrides] (partition-when symbol? impls)]
+(defmacro proxy+
+  "(proxy+ ClassNameSymbol [super-args] & impl-body)
+   or
+   (proxy+ [super-args] & impl-body)"
+  [& args]
+  (let [[proxy-name-sym super-args impls]
+        (if (symbol? (first args))
+          [(first args)
+           (first (rest args))
+           (rest (rest args))]
+          [(gensym "proxy_plus")
+           (first args)
+           (rest args)])
+
+        decls (dofor [[base-sym & overrides] (partition-when symbol? impls)]
                 {:base
                  (resolve! base-sym)
 
@@ -327,7 +340,3 @@
          (new ~(symbol class-name) ^Map fn-map# ~@super-args)
          ))
   ))
-
-(defmacro proxy+ [super-args & impls]
-  `(named-proxy+ ~(gensym "proxy_plus") ~super-args ~@impls)
-  )
