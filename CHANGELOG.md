@@ -1,3 +1,7 @@
+## 0.0.5
+
+* use isAssignableFrom to support type hints that are sub classes
+
 ## 0.0.4
 
 * If there are multiple matching superclass methods, we now pick the last one.
