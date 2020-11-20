@@ -192,12 +192,24 @@
       meth
       )))
 
-
-
 (defmacro proxy+
-  "(proxy+ ClassNameSymbol [super-args] & impl-body)
-   or
-   (proxy+ [super-args] & impl-body)"
+  "Return an object implementing the class and interfaces.
+
+  The class will be named `ClassNameSymbol` if given, otherwise a
+  gensymed name is used.
+
+  super-args is a (possibly empty) vector of arguments to the superclass
+  constructor.
+
+  impl-body specifieds the superclass, any interfaces, and their method
+  implementations.
+
+  A single class, if provided, must be first. If not provided it
+  defaults to Object.
+
+  A replacement for clojure.core/proxy."
+  {:arglists '([[super-args] & impl-body]
+               [ClassNameSymbol [super-args] & impl-body])}
   [& args]
   (let [[proxy-name-sym super-args impls]
         (if (symbol? (first args))
