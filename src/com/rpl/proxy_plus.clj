@@ -283,9 +283,21 @@
       cw)))
 
 (defmacro proxy+
-  "(proxy+ ClassNameSymbol [super-args] & impl-body)
-   or
-   (proxy+ [super-args] & impl-body)"
+  "A replacement for clojure.core/proxy. Return an object implementing the class
+   and interfaces. The class will be named `ClassNameSymbol` if provided;
+   otherwise uses a unique generated name.
+
+   super-args is a (possibly empty) vector of arguments to the superclass
+   constructor.
+
+   impl-body specifies the superclass, any interfaces, and their method
+   implementations, using the same syntax as clojure.core/proxy.
+
+   The first implementation body also specifies the superclass, if it refers to
+   a class; if it is an interface, then the superclass will be Object. All other
+   implementation bodies must refer to interfaces."
+  {:arglists '([[super-args] & impl-body]
+               [ClassNameSymbol [super-args] & impl-body])}
   [& args]
   (let [[proxy-name-sym super-args impls]
         (if (symbol? (first args))
@@ -313,8 +325,7 @@
                            }))
                  })
         klass (define-proxy-class proxy-name-sym decls)
-        class-name (.getName klass)
-        ]
+        class-name (.getName klass)]
 
     (.importClass ^clojure.lang.Namespace *ns* (Class/forName class-name))
     (let [inst-sym (with-meta (gensym "inst")
