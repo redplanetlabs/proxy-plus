@@ -51,10 +51,10 @@
         (.getDeclaredMethods klass)
         ))))
 
-(defn- tag-matches [tag param-class]
+(defn- tag-matches [tag ^Class param-class]
   (or
    (nil? tag)
-   (let [compare-class
+   (let [^Class compare-class
      (case tag
        ;; map primitive type hints to their equivalent classes
        byte Byte/TYPE
