@@ -1,3 +1,7 @@
+## 0.0.6
+
+* remove reflection
+
 ## 0.0.5
 
 * use isAssignableFrom to support type hints that are sub classes
