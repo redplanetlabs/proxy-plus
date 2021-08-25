@@ -1,4 +1,4 @@
-(defproject com.rpl/proxy-plus "0.0.7"
+(defproject com.rpl/proxy-plus "0.0.8-SNAPSHOT"
   :description "A faster and more usable replacement for Clojure's proxy."
   :java-source-paths ["test/java"]
   :test-paths ["test/clj"]
