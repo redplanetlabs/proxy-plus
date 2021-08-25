@@ -7,6 +7,9 @@ proxy instances.
 
 * Support for "named proxy+", allowing you to give useful names to your proxy
 classes.
+## 0.0.5
+
+* use isAssignableFrom to support type hints that are sub classes
 
 ## 0.0.4
 
