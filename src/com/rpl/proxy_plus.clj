@@ -88,10 +88,10 @@
       ))
 ))
 
-(defn- find-matching-method [^Class klass name all-param-types]
+(defn- find-matching-method [^Class klass method-name all-param-types]
   (let [matching (filter
                     (fn [^Method m]
-                      (and (= (.getName m) name)
+                      (and (= (.getName m) method-name)
                            (type-hints-match (rest all-param-types)
                                              (-> m .getParameterTypes))
                            ))
@@ -106,7 +106,7 @@
       (last matching)
 
       (= (count matching) 0)
-      (throw (ex-info "No matching methods" {:base klass :name name}))
+      (throw (ex-info "No matching methods" {:base klass :name method-name}))
 
       :else
       (first matching)
@@ -186,7 +186,95 @@
       meth
       )))
 
+(defn define-proxy-class [proxy-name-sym decls]
+  (let [[^Class super interfaces] (get-super-and-interfaces (mapv :base decls))
 
+        class-name (.replace (str *ns* "." proxy-name-sym) \- \_)
+        this-type (asm/class-name->type-descriptor class-name)
+
+        cw (asm/class-writer-auto)]
+
+    ;; class declaration
+    (apply asm/visit
+      cw
+      (asm/class-name->internal-name class-name)
+      (asm/type-internal-name super)
+      (mapv asm/type-internal-name interfaces))
+
+    ;; generate instance fields for all fn impls. note that these will start
+    ;; nil and be set to impls (with their closures!) at instantiation time.
+    (doseq [{:keys [field]} (select [ALL :override-info ALL] decls)]
+      (asm/visit-field cw field (asm/type-descriptor IFn)))
+
+    ;; generate constructors (one per parent class constructor arity])
+    (doseq [^Constructor c (.getDeclaredConstructors super)]
+      (when-not (Modifier/isPrivate (.getModifiers c))
+        (let [ptypes (.getParameterTypes c)
+              ga (asm/generator-adapter
+                  (asm/get-method
+                   asm/TVOID-TYPE
+                   "<init>"
+                   ptypes)
+                  cw)]
+          (asm/load-this ga)
+          ;; load all the args onto stack
+          (doseq [i (range (count ptypes))]
+            (asm/load-arg ga i))
+          ;; invoke superclass constructor
+          (asm/invoke-constructor ga
+                                  super
+                                  (asm/get-method
+                                   asm/TVOID-TYPE
+                                   "<init>"
+                                   ptypes))
+          (asm/return-value ga)
+          (asm/end-method ga))))
+
+    ;; generate "real" method impls
+    (doseq [{:keys [base override-info]} decls
+            {:keys [method-name field all-param-types]} override-info]
+      (let [^Method jmeth (find-matching-method base
+                                                method-name
+                                                all-param-types)
+            rtype (.getReturnType jmeth)
+            ptypes (.getParameterTypes jmeth)
+            ga (asm/generator-adapter
+                (asm/get-method
+                 (asm/asm-type rtype)
+                 method-name
+                 ptypes)
+                cw)]
+        (asm/load-this ga)
+        ;; load the fn for the impl of this fn
+        (asm/get-field ga this-type field IFn)
+        (asm/load-this ga)
+        ;; re-load all the arguments so we can call the clj fn impl
+        (dofor-indexed [[i ^Class p] ptypes]
+                       (asm/load-arg ga i)
+                       (if (.isPrimitive p)
+                         (box-arg ga p)))
+        ;; invoke the clj fn
+        (asm/invoke-interface ga
+                              IFn
+                              (asm/get-method
+                               Object
+                               "invoke"
+                               ;; one more for "this"
+                               (repeat (-> ptypes count inc) Object)))
+        ;; manage return value if it's not void
+        (when (not= Void/TYPE rtype)
+          (if (.isPrimitive rtype)
+            (unbox-arg ga rtype)
+            (asm/check-cast ga rtype)))
+        (asm/return-value ga)
+        (asm/end-method ga)
+        ))
+
+    ;; return the class
+    (asm/define-class
+      (asm/dynamic-class-loader)
+      class-name
+      cw)))
 
 (defmacro proxy+
   "(proxy+ ClassNameSymbol [super-args] & impl-body)
@@ -203,140 +291,45 @@
            (rest args)])
 
         decls (dofor [[base-sym & overrides] (partition-when symbol? impls)]
-                {:base
-                 (resolve! base-sym)
+                {:base (resolve! base-sym)
 
                  :override-info
-                 (dofor [[name params & body] overrides]
-                   (let [param-types (vec (for [param params](:tag (meta param))))
-                         sname (str name)]
-                     {:name sname
-                      :fn `(fn ~params ~@body)
-                      :field (munge (str (gensym sname)))
-                      :all-param-types param-types
-                      }))
+                 (dofor [[method-name params & body] overrides]
+                        (let [param-types (mapv (comp :tag meta) params)
+                              sname (str method-name)
+                              field-name (munge (str (gensym sname)))
+                              impl-sym (symbol (str field-name "-impl"))]
+                          {:method-name sname
+                           :impl-sym impl-sym
+                           :impl-form `(fn ~params ~@body)
+                           :field field-name
+                           :all-param-types param-types
+                           }))
                  })
-        [^Class super interfaces] (get-super-and-interfaces (mapv :base decls))
-
-        class-name (.replace (str *ns* "." proxy-name-sym) \- \_)
-
-        set-fns-meth (asm/get-method asm/TVOID-TYPE "___setFns" [Map])
-        map-get-meth (asm/get-method Object "get" [Object])
-
-        this-type (asm/class-name->type-descriptor class-name)
-
-        cw (asm/class-writer-auto)
+        klass (define-proxy-class proxy-name-sym decls)
+        class-name (.getName klass)
         ]
-    (apply asm/visit
-      cw
-      (asm/class-name->internal-name class-name)
-      (asm/type-internal-name super)
-      (mapv asm/type-internal-name interfaces))
-    (doseq [f (select [ALL :override-info ALL :field] decls)]
-      (asm/visit-field cw f (asm/type-descriptor IFn)))
 
-    (let [ga (asm/generator-adapter set-fns-meth cw)]
-      (doseq [f (select [ALL :override-info ALL :field] decls)]
-        (asm/load-this ga)
-        (asm/load-arg ga 0)
-        (asm/push-string ga f)
-        (asm/invoke-interface ga Map map-get-meth)
-        (asm/check-cast ga IFn)
-        (asm/put-field
-          ga
-          this-type
-          f
-          IFn)
-        )
-      (asm/return-value ga)
-      (asm/end-method ga)
-      )
-
-    (doseq [^Constructor c (.getDeclaredConstructors super)]
-      (when-not (Modifier/isPrivate (.getModifiers c))
-        (let [ptypes (.getParameterTypes c)
-              ga (asm/generator-adapter
-                   (asm/get-method
-                     asm/TVOID-TYPE
-                     "<init>"
-                     (cons Map ptypes))
-                   cw)]
-          (asm/load-this ga)
-          (doseq [i (range (count ptypes))]
-            (asm/load-arg ga (inc i))
-            )
-          (asm/invoke-constructor
-            ga
-            super
-            (asm/get-method
-              asm/TVOID-TYPE
-              "<init>"
-              ptypes)
-            )
-          (asm/load-this ga)
-          (asm/load-arg ga 0)
-          (asm/invoke-virtual
-            ga
-            this-type
-            set-fns-meth
-            )
-          (asm/return-value ga)
-          (asm/end-method ga)
-          )))
-
-    (doseq [{:keys [base override-info]} decls
-            {:keys [name field all-param-types]} override-info]
-      (let [^Method jmeth (find-matching-method
-                            base
-                            name
-                            all-param-types)
-            rtype (.getReturnType jmeth)
-            ptypes (.getParameterTypes jmeth)
-            ga (asm/generator-adapter
-                 (asm/get-method
-                   (asm/asm-type rtype)
-                   name
-                   ptypes)
-                 cw)]
-        (asm/load-this ga)
-        (asm/get-field ga this-type field IFn)
-        (asm/load-this ga)
-        (dofor-indexed [[i ^Class p] ptypes]
-          (do
-            (asm/load-arg ga i)
-            (if (.isPrimitive p)
-              (box-arg ga p))
-            ))
-        (asm/invoke-interface
-          ga
-          IFn
-          (asm/get-method
-            Object
-            "invoke"
-            ;; one more for "this"
-            (repeat (-> ptypes count inc) Object)
-            ))
-        (if (not= Void/TYPE rtype)
-          (if (.isPrimitive rtype)
-            (unbox-arg ga rtype)
-            (asm/check-cast ga rtype)
-            ))
-        (asm/return-value ga)
-        (asm/end-method ga)
-        ))
-
-    (asm/define-class
-      (asm/dynamic-class-loader)
-      class-name
-      cw)
-    `(do
-       (import (quote ~(symbol class-name)))
-       (let [fn-map# (hash-map
-                      ~@(select [ALL
-                                 :override-info
-                                 ALL
-                                 (multi-path :field :fn)]
-                           decls))]
-         (new ~(symbol class-name) ^Map fn-map# ~@super-args)
-         ))
-  ))
+    (.importClass ^clojure.lang.Namespace *ns* (Class/forName class-name))
+    (let [inst-sym (with-meta (gensym "inst")
+                     {:tag (symbol class-name)})
+          all-impls (->> decls
+                         (select [ALL
+                                  :override-info
+                                  ALL]))]
+      `(let [;; declare each of the clj fn impls here. crucially, they capture
+             ;; their closures at this callsite.
+             ~@(->> all-impls
+                    (mapv (juxt :impl-sym :impl-form))
+                    (reduce concat))
+             ;; instantiate actual proxied type. note that none of the clj fn
+             ;; impls will be assigned yet!
+             ~inst-sym (new ~(symbol class-name) ~@super-args)]
+         ;; iterate over all impls and set the impl fields to the bound impl fn
+         ;; instances.
+         ~@(->> all-impls
+                (mapv (fn [{:keys [impl-sym field]}]
+                        `(set! (. ~inst-sym ~(symbol field)) ~impl-sym))))
+         ;; the instance is now actually usable.
+         ~inst-sym
+         ))))
