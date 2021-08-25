@@ -24,6 +24,7 @@
     (is (instance? TestBaseClass o))
     (is (= "a 11" (.getVal o)))
     (is (= "a1024.5" (.doSomething o \a 10 2 4.5)))
+    ;; NOTE generates a reflection warning because this isn't a real field / fn!
     (is (thrown? Exception (.foo2 o)))
     (is (= 3 (.foo o "aaa")))
     (is (= 5 (.foo o "edcba")))
@@ -148,9 +149,12 @@
          sb (new StringBuilder)
          o2 (proxy+ []
               java.io.Writer
-              (write [this ^String str offset len] (do (.append sb "String overload") nil))
-              (write [this ^chars cbuf offset len] (do (.append sb "char[] overload") nil))
-              )
+              (write [this ^String str offset len]
+                     (.append sb "String overload")
+                     nil)
+              (write [this ^chars cbuf offset len]
+                     (.append sb "char[] overload")
+                     nil))
          o3 (proxy+ []
               InterfaceA
               (bar [this ^Integer x ^Integer y ^long z] "barA")
@@ -165,8 +169,8 @@
               (baz [this ^ints p] 3)
               (baz [this ^chars p] 4)
               )]
-      (is (= "other" (.foo o1 "bar")))
-      (is (= "first" (.foo o1 (int 3))))
+      (is (= "other" (.foo ^I5 o1 "bar")))
+      (is (= "first" (.foo ^I5 o1 ^Integer (int 3))))
       ;; overloads of concrete Java Writer class
       (is (= nil (.write o2 "hello" 0 5)))
       (is (= "String overload" (.toString sb)))
@@ -174,8 +178,10 @@
       (is (= nil (.write o2 (char-array [\f \o \o]) 1 1)))
       (is (= "char[] overload" (.toString sb)))
       ;; same method and arity, but from two different super interfaces
-      (is (= "barA" (.bar o3 (int 1) (int 1) (long 2)))) ; from InterfaceA
-      (is (= "barB" (.bar o3 (int 1) (int 1) (int 2)))) ; from InterfaceB
+      ; from InterfaceA
+      (is (= "barA" (.bar ^InterfaceA o3 (int 1) (int 1) (long 2))))
+      ; from InterfaceB
+      (is (= "barB" (.bar ^InterfaceB o3 (int 1) (int 1) (int 2))))
       (is (= 0 (.baz o3))) ; 0-arity overload
       (is (= 1 (.baz o3 (long 1)))) ; 1-arity (long) overload
       (is (= 2 (.baz o3 (double 1.0)))) ; 1-arity (double) overload
