@@ -327,7 +327,7 @@
         klass (define-proxy-class proxy-name-sym decls)
         class-name (.getName klass)]
 
-    (.importClass ^clojure.lang.Namespace *ns* (Class/forName class-name))
+    (.importClass ^clojure.lang.Namespace *ns* klass)
     (let [inst-sym (with-meta (gensym "inst")
                      {:tag (symbol class-name)})
           all-impls (->> decls
