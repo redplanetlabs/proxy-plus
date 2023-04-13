@@ -1,3 +1,7 @@
+## 0.0.9
+
+* Bump ASM version to 6.2
+
 ## 0.0.8
 
 * Bug fix: confusion between root and dynamic classloader when using proxy+
