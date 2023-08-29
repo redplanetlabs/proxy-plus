@@ -2,11 +2,11 @@
   (:refer-clojure :exclude
     [cast monitor-enter monitor-exit not pop get-method])
   (:require [clojure.string :as str])
-  (:import [org.objectweb.asm MethodVisitor
+  (:import [rpl.shaded.org.objectweb.asm MethodVisitor
             ClassVisitor ClassWriter
             AnnotationVisitor Label Opcodes Type]
-           [org.objectweb.asm.util CheckClassAdapter]
-           [org.objectweb.asm.commons GeneratorAdapter Method]
+           [rpl.shaded.org.objectweb.asm.util CheckClassAdapter]
+           [rpl.shaded.org.objectweb.asm.commons GeneratorAdapter Method]
            [java.io PrintWriter]
            [clojure.lang DynamicClassLoader]
            [java.lang.reflect Field]))

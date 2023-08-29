@@ -1,3 +1,7 @@
+## 0.0.10
+
+* Change to shaded ASM dependency
+
 ## 0.0.9
 
 * Bump ASM version to 6.2
