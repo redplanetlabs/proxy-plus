@@ -233,3 +233,63 @@
                        (foo [_this ^SuperDuperMap m] "woo")
                        ))))
   )
+
+(deftest strip-unimplemented-hints-test
+  (let [x nil]
+    (is (= '[nil nil nil]
+           (mapv meta (strip-unimplemented-hints '[x x x]))))
+    (is (= '[nil nil {:not-disturbed true}]
+           (mapv meta (strip-unimplemented-hints '[x x ^{:not-disturbed true} x]))))
+    (is (= '[{:tag java.lang.Object}]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x]))))
+    (is (= '[{:tag java.lang.Object} {:tag long} nil]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x ^long x x]))))
+    (is (= '[{:tag java.lang.Object} {:tag long} {}]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x ^long x ^bet.this.isnt.loaded x]))))
+    (is (= '[{:tag java.lang.Object} {} {} nil nil]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x ^long x ^bet.this.isnt.loaded x x x]))))
+    (is (= '[{} {} {} {} {}]
+           (mapv meta (strip-unimplemented-hints '[^int x ^long x ^double x ^char x ^boolean x]))))
+    (is (= '[{} {:tag long} {:tag double} {}]
+           (mapv meta (strip-unimplemented-hints '[^int x ^long x ^double x ^char x]))))
+    (is (= '[{} {:tag long, :not-disturbed true} {:tag double}]
+           (mapv meta (strip-unimplemented-hints '[^int x ^{:tag long :not-disturbed true} x ^double x]))))
+    (is (= '[{} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {:tag Object}]
+           (mapv meta (strip-unimplemented-hints
+                       '[^byte x ^bytes x ^short x ^shorts x ^int x ^ints x ^long x ^longs x
+                         ^float x ^floats x ^double x ^doubles x ^boolean x ^booleans x ^char x ^chars x
+                         ^void x ^objects x ^Object x]))))))
+
+(deftest hard-primative-signature-test
+  (testing "There are complications from Clojure's compiler. It doesn't support
+functions with certain primative type hints and only supports 4 args if any
+primatives are present. Check such superclass methods can still be overridden.
+
+Issue #20"
+
+    (let [o
+          (proxy+ [] TestBaseClass
+                  ;; Hard to test, but this is a demo of what an illegal method
+                  ;; override does.
+                  #_(hardSignature [this ^char b s i l bo st] 11)
+
+                  ;; Note that seeing ^long or ^double in the type signature
+                  ;; triggers special behaviour in the Clojure compiler.
+                  ;; This code would work without those hints, but the test
+                  ;; would not be thorough.
+                  (hardSignature [this ^byte b ^short s ^int i ^long l ^boolean bo ^String st] 12)
+                  (hardSignature [this ^java.lang.Byte b ^Short s ^Integer i ^Long l ^Boolean bo ^String st] (.intValue 13)))]
+      (is (= 12 (.hardSignature o
+                               ^byte (.byteValue 1)
+                               ^short (.shortValue 1)
+                               ^int (.intValue 1)
+                               ^long (identity 1)
+                               ^boolean (identity true)
+                               "Two")))
+      (is (= 13 (.hardSignature o
+                               ^Byte (.byteValue 1)
+                               ^Short (.shortValue 1)
+                               ^Integer (.intValue 1)
+                               ^Long (identity 1)
+                               ^Boolean (identity true)
+                                "Two"))))))
