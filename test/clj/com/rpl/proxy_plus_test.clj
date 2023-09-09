@@ -233,3 +233,37 @@
                        (foo [_this ^SuperDuperMap m] "woo")
                        ))))
   )
+
+(deftest hard-primative-signature-test
+  (testing "There are complications from Clojure's compiler. It doesn't support
+functions with certain primative type hints and only supports 4 args if any
+primatives are present. Check such superclass methods can still be overridden.
+
+Issue #20"
+
+    (let [o
+          (proxy+ [] TestBaseClass
+                  ;; Hard to test, but this is a demo of what an illegal method
+                  ;; override does.
+                  #_(hardSignature [this ^char b s i l bo st] 11)
+
+                  ;; Note that seeing ^long or ^double in the type signature
+                  ;; triggers special behaviour in the Clojure compiler.
+                  ;; This code would work without those hints, but the test
+                  ;; would not be thorough.
+                  ^int (hardSignature [this ^byte b ^short s ^int i ^long l ^boolean bo ^String st] 12)
+                  ^Integer (hardSignature [this ^java.lang.Byte b ^Short s ^Integer i ^Long l ^Boolean bo ^String st] (.intValue 13)))]
+      (is (= 12 (.hardSignature o
+                               ^byte (.byteValue 1)
+                               ^short (.shortValue 1)
+                               ^int (.intValue 1)
+                               ^long (identity 1)
+                               ^boolean (identity true)
+                               "Two")))
+      (is (= 13 (.hardSignature o
+                               ^Byte (.byteValue 1)
+                               ^Short (.shortValue 1)
+                               ^Integer (.intValue 1)
+                               ^Long (identity 1)
+                               ^Boolean (identity true)
+                                "Two"))))))
