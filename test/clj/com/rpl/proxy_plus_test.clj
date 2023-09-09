@@ -277,8 +277,8 @@ Issue #20"
                   ;; triggers special behaviour in the Clojure compiler.
                   ;; This code would work without those hints, but the test
                   ;; would not be thorough.
-                  ^int (hardSignature [this ^byte b ^short s ^int i ^long l ^boolean bo ^String st] 12)
-                  ^Integer (hardSignature [this ^java.lang.Byte b ^Short s ^Integer i ^Long l ^Boolean bo ^String st] (.intValue 13)))]
+                  (hardSignature [this ^byte b ^short s ^int i ^long l ^boolean bo ^String st] 12)
+                  (hardSignature [this ^java.lang.Byte b ^Short s ^Integer i ^Long l ^Boolean bo ^String st] (.intValue 13)))]
       (is (= 12 (.hardSignature o
                                ^byte (.byteValue 1)
                                ^short (.shortValue 1)
