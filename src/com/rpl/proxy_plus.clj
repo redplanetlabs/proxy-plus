@@ -93,16 +93,23 @@
       ))
 ))
 
+(defn characterize
+  [^Method m]
+  (-> {:name (.getName m)
+       :params (vec (.getParameterTypes m))
+       :returns (.getReturnType m)}))
+
 (defn- find-matching-method [^Class klass method-name all-param-types]
-  (let [matching (filter
+  (let [available-methods (concat
+                           (get-protected-methods klass)
+                           (.getMethods klass))
+        matching (filter
                     (fn [^Method m]
                       (and (= (.getName m) method-name)
                            (type-hints-match (rest all-param-types)
                                              (-> m .getParameterTypes))
                            ))
-                    (concat
-                      (get-protected-methods klass)
-                      (.getMethods klass)))]
+                    available-methods)]
     (cond
       ;; there was more than one match, but the last one is the one that is
       ;; closest to the base class we specified in the proxy+ decl block, so
@@ -111,7 +118,10 @@
       (last matching)
 
       (= (count matching) 0)
-      (throw (ex-info "No matching methods" {:base klass :name method-name}))
+      (throw (ex-info "No matching methods" {:base klass
+                                             :name method-name
+                                             :params (vec (rest all-param-types))
+                                             :methods-available (map characterize available-methods)}))
 
       :else
       (first matching)
