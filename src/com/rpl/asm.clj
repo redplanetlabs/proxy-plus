@@ -376,9 +376,6 @@
 (defn monitor-exit [^GeneratorAdapter ga]
   (.monitorExit ga))
 
-(defn new-array [^GeneratorAdapter ga t]
-  (.newArray ga (asm-type t)))
-
 (defn new-instance [^GeneratorAdapter ga t]
   (.newInstance ga (asm-type t)))
 
@@ -458,9 +455,12 @@
   ([^GeneratorAdapter ga t ^String msg]
    (.throwException ga (asm-type t) msg)))
 
-(defn new-array [^GeneratorAdapter ga n t]
-  (push-int ga n)
-  (.newArray ga (asm-type t)))
+(defn new-array
+  ([^GeneratorAdapter ga t]
+   (.newArray ga (asm-type t)))
+  ([^GeneratorAdapter ga n t]
+   (push-int ga n)
+   (.newArray ga (asm-type t))))
 
 (defn unbox [^GeneratorAdapter ga t]
   (.unbox ga (asm-type t)))
