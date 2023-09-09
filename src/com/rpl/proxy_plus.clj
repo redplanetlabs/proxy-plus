@@ -294,6 +294,21 @@
       class-name
       cw)))
 
+(defn- strip-unimplemented-hints [args]
+  ;; Clojure has arbitrary limits on primative type hints. Adjust :tag in arg
+  ;; meta to meet them by stripping out unimplemented hints.
+  ;; See Issue #20
+  (let [clean-meta (fn [{:keys [tag] :as m}]
+                     (cond
+                       (nil? tag) m
+                       (class? tag) m
+                       ;; max. 4 args with ^double/^long hints
+                       (> (count args) 4) (dissoc m :tag)
+                       ;; Primatives other than ^double/^long banned
+                       (contains? #{'double 'long} tag) m
+                       :else (dissoc m :tag)))]
+    (mapv #(vary-meta % clean-meta) args)))
+
 (defmacro proxy+
   "A replacement for clojure.core/proxy. Return an object implementing the class
    and interfaces. The class will be named `ClassNameSymbol` if provided;
@@ -307,7 +322,13 @@
 
    The first implementation body also specifies the superclass, if it refers to
    a class; if it is an interface, then the superclass will be Object. All other
-   implementation bodies must refer to interfaces."
+   implementation bodies must refer to interfaces.
+
+   Clojure has certain arbitary restrictions on primative hints (^long, ^int,
+   etc). If the type signature given to proxy does not allow a legal clojure
+   function to be constructed then the primative type hints will be used to
+   match the method being over-ridden but otherwise ignored for the purposes of
+   constructing the CLojure function."
   {:arglists '([[super-args] & impl-body]
                [ClassNameSymbol [super-args] & impl-body])}
   [& args]
@@ -326,12 +347,13 @@
                  :override-info
                  (dofor [[method-name params & body] overrides]
                         (let [param-types (mapv (comp :tag meta) params)
+                              clean-params (strip-unimplemented-hints params)
                               sname (str method-name)
                               field-name (munge (str (gensym sname)))
                               impl-sym (symbol (str field-name "-impl"))]
                           {:method-name sname
                            :impl-sym impl-sym
-                           :impl-form `(fn ~params ~@body)
+                           :impl-form `(fn ~clean-params ~@body)
                            :field field-name
                            :all-param-types param-types
                            }))
