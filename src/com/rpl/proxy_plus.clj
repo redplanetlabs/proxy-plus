@@ -294,14 +294,14 @@
       class-name
       cw)))
 
-(defn- strip-unimplemented-hints [args]
+(defn strip-unimplemented-hints [args]
   ;; Clojure has arbitrary limits on primative type hints. Adjust :tag in arg
   ;; meta to meet them by stripping out unimplemented hints.
   ;; See Issue #20
   (let [clean-meta (fn [{:keys [tag] :as m}]
                      (cond
                        (nil? tag) m
-                       (class? tag) m
+                       (-> tag resolve class?) m
                        ;; max. 4 args with ^double/^long hints
                        (> (count args) 4) (dissoc m :tag)
                        ;; Primatives other than ^double/^long banned

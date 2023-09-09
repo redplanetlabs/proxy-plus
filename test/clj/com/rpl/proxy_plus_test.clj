@@ -234,6 +234,32 @@
                        ))))
   )
 
+(deftest strip-unimplemented-hints-test
+  (let [x nil]
+    (is (= '[nil nil nil]
+           (mapv meta (strip-unimplemented-hints '[x x x]))))
+    (is (= '[nil nil {:not-disturbed true}]
+           (mapv meta (strip-unimplemented-hints '[x x ^{:not-disturbed true} x]))))
+    (is (= '[{:tag java.lang.Object}]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x]))))
+    (is (= '[{:tag java.lang.Object} {:tag long} nil]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x ^long x x]))))
+    (is (= '[{:tag java.lang.Object} {:tag long} {}]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x ^long x ^bet.this.isnt.loaded x]))))
+    (is (= '[{:tag java.lang.Object} {} {} nil nil]
+           (mapv meta (strip-unimplemented-hints '[^java.lang.Object x ^long x ^bet.this.isnt.loaded x x x]))))
+    (is (= '[{} {} {} {} {}]
+           (mapv meta (strip-unimplemented-hints '[^int x ^long x ^double x ^char x ^boolean x]))))
+    (is (= '[{} {:tag long} {:tag double} {}]
+           (mapv meta (strip-unimplemented-hints '[^int x ^long x ^double x ^char x]))))
+    (is (= '[{} {:tag long, :not-disturbed true} {:tag double}]
+           (mapv meta (strip-unimplemented-hints '[^int x ^{:tag long :not-disturbed true} x ^double x]))))
+    (is (= '[{} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {:tag Object}]
+           (mapv meta (strip-unimplemented-hints
+                       '[^byte x ^bytes x ^short x ^shorts x ^int x ^ints x ^long x ^longs x
+                         ^float x ^floats x ^double x ^doubles x ^boolean x ^booleans x ^char x ^chars x
+                         ^void x ^objects x ^Object x]))))))
+
 (deftest hard-primative-signature-test
   (testing "There are complications from Clojure's compiler. It doesn't support
 functions with certain primative type hints and only supports 4 args if any
