@@ -325,10 +325,10 @@
    implementation bodies must refer to interfaces.
 
    Clojure has certain arbitary restrictions on primative hints (^long, ^int,
-   etc). If the type signature given to proxy does not allow a legal clojure
+   etc). If the type signature given to proxy does not allow a legal Clojure
    function to be constructed then the primative type hints will be used to
    match the method being over-ridden but otherwise ignored for the purposes of
-   constructing the CLojure function."
+   constructing the Clojure function."
   {:arglists '([[super-args] & impl-body]
                [ClassNameSymbol [super-args] & impl-body])}
   [& args]
