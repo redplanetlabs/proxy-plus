@@ -1,0 +1,2 @@
+{:hooks {:analyze-call {com.rpl.proxy-plus/proxy+ hooks.proxy-plus/proxy+}}
+ :linters {:proxy-plus/superclass-args {:level :error}}}
