@@ -10,6 +10,8 @@ The latest release version of proxy-plus is hosted on [Clojars](https://clojars.
 
 [![Current Version](https://clojars.org/com.rpl/proxy-plus/latest-version.svg)](https://clojars.org/com.rpl/proxy-plus)
 
+Note that proxy-plus has a dependency on `rama-shaded-asm`, which is hosted on a private Maven repo at `https://nexus.redplanetlabs.com/repository/maven-public-releases`. You'll need to include this repository in your build to resolve the dependencies of proxy-plus. 
+
 ## Usage
 
 This library provides the macro `proxy+`. The first argument is fields to provide to the superclass's constructor. Next comes `reify`-like definitions to provide overrides.  When extending a base class, the base class should come first. Example usage:
