@@ -30,4 +30,13 @@ public abstract class TestBaseClass {
     throw new RuntimeException();
   }
 
+  // Having many arguments is significant; Clojure only supports 4 args when
+  // primative hints are present. See https://clojure.org/reference/java_interop
+  public int hardSignature(byte b, short s, int i, long l, boolean bo, String st){
+    return 1;
+  }
+
+  public Integer hardSignature(Byte b, Short s, Integer i, Long l, Boolean bo, String st){
+    return 2;
+  }
 }

@@ -93,16 +93,23 @@
       ))
 ))
 
+(defn characterize
+  [^Method m]
+  (-> {:name (.getName m)
+       :params (vec (.getParameterTypes m))
+       :returns (.getReturnType m)}))
+
 (defn- find-matching-method [^Class klass method-name all-param-types]
-  (let [matching (filter
+  (let [available-methods (concat
+                           (get-protected-methods klass)
+                           (.getMethods klass))
+        matching (filter
                     (fn [^Method m]
                       (and (= (.getName m) method-name)
                            (type-hints-match (rest all-param-types)
                                              (-> m .getParameterTypes))
                            ))
-                    (concat
-                      (get-protected-methods klass)
-                      (.getMethods klass)))]
+                    available-methods)]
     (cond
       ;; there was more than one match, but the last one is the one that is
       ;; closest to the base class we specified in the proxy+ decl block, so
@@ -111,7 +118,10 @@
       (last matching)
 
       (= (count matching) 0)
-      (throw (ex-info "No matching methods" {:base klass :name method-name}))
+      (throw (ex-info "No matching methods" {:base klass
+                                             :name method-name
+                                             :params (vec (rest all-param-types))
+                                             :methods-available (map characterize available-methods)}))
 
       :else
       (first matching)
@@ -284,6 +294,21 @@
       class-name
       cw)))
 
+(defn strip-unimplemented-hints [args]
+  ;; Clojure has arbitrary limits on primative type hints. Adjust :tag in arg
+  ;; meta to meet them by stripping out unimplemented hints.
+  ;; See Issue #20
+  (let [clean-meta (fn [{:keys [tag] :as m}]
+                     (cond
+                       (nil? tag) m
+                       (-> tag resolve class?) m
+                       ;; max. 4 args with ^double/^long hints
+                       (> (count args) 4) (dissoc m :tag)
+                       ;; Primatives other than ^double/^long banned
+                       (contains? #{'double 'long} tag) m
+                       :else (dissoc m :tag)))]
+    (mapv #(vary-meta % clean-meta) args)))
+
 (defmacro proxy+
   "A replacement for clojure.core/proxy. Return an object implementing the class
    and interfaces. The class will be named `ClassNameSymbol` if provided;
@@ -297,7 +322,13 @@
 
    The first implementation body also specifies the superclass, if it refers to
    a class; if it is an interface, then the superclass will be Object. All other
-   implementation bodies must refer to interfaces."
+   implementation bodies must refer to interfaces.
+
+   Clojure has certain arbitary restrictions on primative hints (^long, ^int,
+   etc). If the type signature given to proxy does not allow a legal Clojure
+   function to be constructed then the primative type hints will be used to
+   match the method being over-ridden but otherwise ignored for the purposes of
+   constructing the Clojure function."
   {:arglists '([[super-args] & impl-body]
                [ClassNameSymbol [super-args] & impl-body])}
   [& args]
@@ -316,12 +347,13 @@
                  :override-info
                  (dofor [[method-name params & body] overrides]
                         (let [param-types (mapv (comp :tag meta) params)
+                              clean-params (strip-unimplemented-hints params)
                               sname (str method-name)
                               field-name (munge (str (gensym sname)))
                               impl-sym (symbol (str field-name "-impl"))]
                           {:method-name sname
                            :impl-sym impl-sym
-                           :impl-form `(fn ~params ~@body)
+                           :impl-form `(fn ~clean-params ~@body)
                            :field field-name
                            :all-param-types param-types
                            }))
